@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.xlsx
+pickup_history.json
+ups_api.log
+.gemini/
+brain/
+*.txt
+*.pyc
+venv/
+.venv/
