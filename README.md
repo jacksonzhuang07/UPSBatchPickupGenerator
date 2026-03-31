@@ -1,89 +1,85 @@
 # 🚀 UPS Pickup Automation Engine
 
-**Transforming Logistics Workflows with Intelligent Automation**
+**Bridging User Experience and Logistics Efficiency with Intelligent Automation**
+
+![Project Preview](docs/assets/preview.png)
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![API-UPS](https://img.shields.io/badge/API-UPS%20REST-orange.svg)](https://www.ups.com/upsdeveloperkit)
+[![Style-macOS](https://img.shields.io/badge/Style-macOS--inspired-lightgrey.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🌟 Executive Summary
-The **UPS Pickup Automation Engine** is a high-performance desktop application designed to eliminate the friction of scheduling high-volume logistics pickups. By leveraging intelligent NLP-based address parsing and direct integration with UPS RESTful APIs, this tool reduces complex manual scheduling tasks from **minutes to seconds**.
+## 🌟 Overview
+The **UPS Pickup Automation Engine** is a professional-grade desktop utility that streamlines high-volume logistics operations. It transforms the manual, error-prone process of scheduling UPS pickups into a seamless, automated workflow using **NLP-driven address parsing**, **real-time API integration**, and a **modern macOS-inspired interface**.
 
 ---
 
-## 💼 Business Value & Impact
+## 💎 Features that Matter
 
-### ⏳ 90% Reduction in Processing Time
-Manual entry of a single pickup can take 2-3 minutes. Our **Batch Processing Engine** handles up to 150 pickups in a single click, saving hours of manual labor every week for logistics teams.
+### 🎨 macOS-Inspired UI/UX
+Designed with a "minimal yet powerful" philosophy. The interface features:
+- **San Francisco Typography**: Native-feel readability.
+- **Card-Based Layouts**: Organized, high-contrast forms to reduce operator fatigue.
+- **Accent Actions**: High-contrast blue buttons for primary logistical operations.
+- **Live Status Monitor**: Real-time feedback via a persistent, minimal status bar.
 
-### 🎯 Zero-Error Precision
-By automating the extraction of addresses and tracking numbers directly from client emails or manifests, the engine eliminates costly human errors such as typos in postal codes or house numbers that lead to missed pickups.
+### 🧠 Intelligent Address Normalization
+Logistics data is often messy. This engine features:
+- **Heuristic NLP Parsing**: Automatically extracts Company/Contact info from unstructured text.
+- **Auto-Normalization**: Converts full state/province names (e.g., "Quebec") to ISO codes ("QC") to ensure 100% API compatibility.
+- **Country-Aware Logic**: Dynamically switches service codes (Standard vs. Ground) based on destination country.
 
-### 📈 Seamless Scalability
-Designed for growth, the architecture supports batch operations and handles complex regional logic (US/Canada service codes) automatically, allowing your team to focus on high-value logistics strategy rather than data entry.
-
-### 📋 Enterprise Auditing
-Every action is serialized into a robust history with Excel export capabilities, providing immediate transparency for billing, performance tracking, and client reporting.
-
----
-
-## 🛠️ Technology Stack
-
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Core** | Python 3.10+ | Robust, scalable application logic. |
-| **Parsing** | `usaddress` + Custom Heuristics | NLP-driven extraction of Company, Contact, and Address. |
-| **UI** | Tkinter | Lightweight, cross-platform Desktop GUI. |
-| **Integrations**| UPS OAuth2 REST APIs | Secure, real-time pickup & shipment management. |
-| **Data** | JSON / OpenPyXL | High-speed local history & Professional Excel reporting. |
-| **DevOps** | Git / Python-Dotenv | Professional version control and secure credential management. |
+### ⏰ Advanced Business Logic
+- **Regional Cutoff Awareness**: Automatically validates requested pickup times against known regional constraints (e.g., 11:00 AM cutoffs in remote border towns).
+- **Timezone-Safe Scheduling**: Smartly adjusts "Ready Times" for same-day requests to prevent "past-time" API rejections.
+- **Automatic Label Fallback**: Intelligently handles cross-border account restrictions by falling back to verified tracking numbers.
 
 ---
 
-## 🚀 Key Features
+## 👨‍💻 Technical Architecture
 
-### 🧠 Intelligent Address Parsing
-Our custom-built parser uses heuristic logic to intelligently identify:
-- **Company Name & Contact Name** from raw, unstructured text.
-- **Improved Phone Detection** across global formats.
-- **Smart Tracking Detection** for automated 1Z lookup.
+### **Modular System Design**
+The application is built on a clean, decoupled architecture:
+- **`UPSApiClient`**: An asynchronous wrapper for the UPS REST API (OAuth2, Pickup, Shipping).
+- **`AddressParser`**: A utility layer leveraging the `usaddress` library and regex for robust data extraction.
+- **`UPSPickupGUI`**: A responsive Tkinter-based view layer styled with modern `ttk` themes.
 
-### 📦 Automated Label Generation
-Integrates with the UPS Shipping API to automatically generate unique return labels when no tracking number is provided, creating a truly "one-click" experience.
-
-### 🌍 Timezone-Aware Scheduling
-Automatically calculates local pickup times based on the destination province (NL to BC), ensuring compliance with UPS cutoff windows across multiple time zones.
-
-### 📊 Professional History Engine
-- **Searchable Logging**: Filter by PRN, Address, or Company.
-- **Live Status Verification**: One-click lookup of real-time UPS status for any scheduled pickup.
-- **Batch Export**: Professional-grade Excel reports for auditing and bookkeeping.
+### **Tech Stack**
+- **Language**: Python 3.10+
+- **APIs**: UPS REST API (OAuth2 / JSON)
+- **GUI**: Tkinter + Custom `ttk.Style` styling
+- **Parsing**: `usaddress`, `regex`
+- **Data**: `openpyxl` (Excel), `json` (History)
 
 ---
 
-## 🛠️ Installation & Setup
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/UPSPickupAPI.git
-   ```
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. **Configure Environment:**
-   Create a `.env` file based on `.env.template` with your UPS API credentials.
-4. **Run the App:**
-   ```bash
-   python main.py
-   ```
+## 🛠️ Performance Highlights
+- **Batch Processing**: Schedule up to **150 pickups** in a single execution thread.
+- **Response Efficiency**: Maintains UI responsiveness during API calls via Python threading.
+- **Audit Ready**: Serialization of every request into a searchable local history with professional-grade Excel exports.
 
 ---
 
-## 👨‍💻 Technical Highlights
-- **Asynchronous Execution**: Uses Python threading to ensure the GUI remains responsive during long-running API batch calls.
-- **Stateless API Design**: Implements robust OAuth2 token management.
-- **Modular Architecture**: Clean separation between the `UPSApiClient`, `AddressParser`, and `GUI` layers for easy maintenance and testing.
+## 🚀 Technical Challenges Overcome
+*One of the most complex challenges was resolving specific UPS business rule rejections (Code 9510113). By implementing a diagnostic test suite to probe regional API cutoffs, I mapped specific limitations (such as the 11:00 AM cutoff for Rouses Point, NY) and integrated proactive validation logic to guide operators before submission.*
 
 ---
-*Created with focus on efficiency, reliability, and visual excellence.*
+
+## 🛠️ Installation
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/jacksonzhuang07/UPSBatchPickupGenerator.git
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Setup .env with UPS Credentials
+# (See .env.template for required fields)
+
+# 4. Launch
+python main.py
+```
+
+---
+*Developed with a commitment to visual excellence and technical precision.*
