@@ -19,6 +19,7 @@ class UPSApiClient:
         self.client_id = os.getenv("UPS_CLIENT_ID", "GYLxTKSD7jpnoDnBrGbF2Jk0Uv3MEwPBGSwvBfZQI3DW04nS")
         self.client_secret = os.getenv("UPS_CLIENT_SECRET", "PBJtFdVhZWXfvq6CegMiX3aaUl71cGWkmu2Um5tg4crTkXQUG3hzwehQiGK7EsDg")
         self.account_number = os.getenv("UPS_ACCOUNT_NUMBER", "4a059a")
+        self.account_country = os.getenv("UPS_ACCOUNT_COUNTRY", "CA")
         self.env = os.getenv("UPS_ENVIRONMENT", "production") 
         
         if self.env == "production":
@@ -74,8 +75,14 @@ class UPSApiClient:
             if label_service in mapping:
                 service_code = mapping[label_service]
             else:
-                # Default to 011 (Standard) for unknown codes in Canada, or 003 for US
-                service_code = "011" if pickup_data.get("Country") == "CA" else "003"
+                # Default based on country
+                country = pickup_data.get("Country", "")
+                if country == "CA":
+                    service_code = "011"
+                elif country == "US":
+                    service_code = "003"
+                else:
+                    service_code = "007"  # UPS Worldwide Express for international
             
         if not self.token:
             self.get_access_token()
@@ -101,7 +108,7 @@ class UPSApiClient:
                 "Shipper": {
                     "Account": {
                         "AccountNumber": self.account_number,
-                        "AccountCountryCode": pickup_data.get("Country", "US")
+                        "AccountCountryCode": self.account_country
                     }
                 },
                 "PickupDateInfo": {
@@ -195,6 +202,7 @@ class UPSApiClient:
                         "AttentionName": pickup_data.get("ContactName", "Warehouse"),
                         "Phone": {"Number": pickup_data.get("Phone", "5142886664")},
                         "ShipperNumber": self.account_number,
+                        "AccountCountryCode": self.account_country, 
                         "Address": {
                             "AddressLine": [pickup_data.get("Street", "")],
                             "City": pickup_data.get("City", ""),

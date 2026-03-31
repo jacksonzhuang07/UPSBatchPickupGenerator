@@ -11,6 +11,14 @@ from ups_api import UPSApiClient
 import openpyxl
 from openpyxl.styles import Font
 
+UPS_ERROR_MAP = {
+    "9510113": "The Ready Time is after the local cutoff for this region. Please select an earlier time (e.g., 09:00 - 11:00 AM).",
+    "9510118": "Pickup service is not available for this address/day. Check if it is a holiday or remote area.",
+    "9500505": "Invalid State/Province code. Even with normalization, UPS requires a 2-letter ISO code.",
+    "120120": "Account mismatch. A Canadian account cannot generate domestic US return labels. Falling back to default tracking.",
+    "9500781": "The pickup has zero balance for charges (Success)."
+}
+
 class UPSPickupGUI:
     def __init__(self, root):
         self.root = root
@@ -34,79 +42,144 @@ class UPSPickupGUI:
         print(f"[{timestamp}] {message}")
 
     def setup_ui(self):
-        style = ttk.Style()
-        style.configure("TLabel", font=("Helvetica", 10))
-        style.configure("TButton", font=("Helvetica", 10, "bold"))
+        # macOS-like Aesthetic Tokens
+        bg_main = "#F5F5F7"
+        bg_card = "#FFFFFF"
+        accent_blue = "#007AFF"
+        text_primary = "#1D1D1F"
+        text_secondary = "#86868B"
         
+        # Determine best available font
+        available_fonts = ["San Francisco", "Helvetica Neue", "Helvetica", "Segoe UI", "Arial"]
+        main_font_family = "Helvetica" # Default
+        for f in available_fonts:
+            # Simple check by creating a dummy font
+            try:
+                tk.font.Font(family=f)
+                main_font_family = f
+                break
+            except: continue
+
+        self.main_font = (main_font_family, 10)
+        self.bold_font = (main_font_family, 10, "bold")
+        self.header_font = (main_font_family, 13, "bold")
+        
+        style = ttk.Style()
+        style.theme_use('clam')
+        
+        self.root.configure(bg=bg_main)
+        
+        # Configure Styles
+        style.configure("TFrame", background=bg_main)
+        style.configure("Card.TFrame", background=bg_card, relief=tk.FLAT)
+        
+        style.configure("TLabel", background=bg_main, foreground=text_primary, font=self.main_font)
+        style.configure("Secondary.TLabel", background=bg_main, foreground=text_secondary, font=(f"{main_font_family}", 9))
+        style.configure("Header.TLabel", background=bg_main, foreground=text_primary, font=self.header_font)
+        
+        style.configure("TButton", font=self.bold_font, padding=[12, 6], background=bg_card, foreground=text_primary)
+        style.map("TButton", background=[("active", "#E8E8ED")])
+        
+        style.configure("Accent.TButton", font=self.bold_font, padding=[12, 6], background=accent_blue, foreground="white")
+        style.map("Accent.TButton", background=[("active", "#0051D7")])
+        
+        style.configure("TNotebook", background=bg_main, borderwidth=0)
+        style.configure("TNotebook.Tab", background=bg_main, foreground=text_secondary, font=self.bold_font, padding=[15, 8])
+        style.map("TNotebook.Tab", 
+                  background=[("selected", bg_main)], 
+                  foreground=[("selected", accent_blue)])
+        
+        style.configure("Treeview", font=self.main_font, rowheight=28, background=bg_card, fieldbackground=bg_card, borderwidth=0)
+        style.configure("Treeview.Heading", font=self.bold_font, background="#E8E8ED", borderwidth=0)
+        
+        # Main Layout
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=20, pady=(10, 20))
         
         self.single_tab = ttk.Frame(self.notebook)
         self.batch_tab = ttk.Frame(self.notebook)
         
         self.notebook.add(self.single_tab, text="Single Pickup")
-        self.notebook.add(self.batch_tab, text="Batch Pickup")
+        self.notebook.add(self.batch_tab, text="Batch Processing")
         
         self.setup_single_tab()
         self.setup_batch_tab()
+        
+        # Modern Status Bar (Minimal)
+        self.status_var = tk.StringVar(value="Ready")
+        status_frame = ttk.Frame(self.root, padding=(20, 5))
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        status_dot = tk.Label(status_frame, text="●", fg="#34C759", bg=bg_main, font=("Segoe UI", 8))
+        status_dot.pack(side=tk.LEFT)
+        status_bar = ttk.Label(status_frame, textvariable=self.status_var, font=(f"{main_font_family}", 9))
+        status_bar.pack(side=tk.LEFT, padx=5)
 
     def setup_single_tab(self):
         main_frame = ttk.Frame(self.single_tab, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Address Paste Area
-        ttk.Label(main_frame, text="Paste Address Here:").pack(anchor=tk.W)
-        self.address_text = tk.Text(main_frame, height=5, font=("Helvetica", 10))
-        self.address_text.pack(fill=tk.X, pady=(0, 10))
+        ttk.Label(main_frame, text="Paste Address:", font=self.header_font).pack(anchor=tk.W, pady=(0, 5))
+        self.address_text = tk.Text(main_frame, height=4, font=self.main_font, borderwidth=1, relief=tk.SOLID)
+        self.address_text.pack(fill=tk.X, pady=(0, 15))
         
-        parse_btn = ttk.Button(main_frame, text="Parse Address", command=self.parse_and_fill)
-        parse_btn.pack(pady=(0, 20))
+        parse_btn = ttk.Button(main_frame, text="Parse & Audit", command=self.parse_and_fill)
+        parse_btn.pack(anchor=tk.W, pady=(0, 20))
         
-        # Auditable Fields
-        fields_frame = ttk.LabelFrame(main_frame, text="Audit Details", padding="10")
-        fields_frame.pack(fill=tk.BOTH, expand=True)
+        # Auditable Fields (Card Style)
+        fields_card = ttk.Frame(main_frame, style="Card.TFrame", padding=20)
+        fields_card.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(fields_card, text="Audit Details", font=self.bold_font, background="white").grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 15))
         
         self.fields = {}
         field_labels = ["Street", "Suite", "City", "State", "Zip", "Country", "CompanyName", "ContactName", "Phone", "Email"]
         
         for i, label in enumerate(field_labels):
-            ttk.Label(fields_frame, text=f"{label}:").grid(row=i, column=0, sticky=tk.W, pady=2)
-            entry = ttk.Entry(fields_frame, width=40)
-            entry.grid(row=i, column=1, sticky=tk.W, padx=10, pady=2)
+            row = (i // 2) + 1
+            col = (i % 2) * 2
+            ttk.Label(fields_card, text=f"{label}:", background="white", font=self.main_font).grid(row=row, column=col, sticky=tk.W, pady=8, padx=(0, 5))
+            entry = ttk.Entry(fields_card, width=28)
+            entry.grid(row=row, column=col+1, sticky=tk.W, padx=(0, 20), pady=8)
             self.fields[label] = entry
             
         # Default values
         self.fields["Country"].insert(0, "CA")
         self.fields["CompanyName"].insert(0, "Omnitrans Inc")
         self.fields["ContactName"].insert(0, "Warehouse")
-        
+            
         # Date / Time Fields
-        datetime_frame = ttk.LabelFrame(main_frame, text="Pickup Date & Time", padding="10")
-        datetime_frame.pack(fill=tk.X, pady=10)
+        datetime_frame = ttk.Frame(main_frame, padding=(0, 20))
+        datetime_frame.pack(fill=tk.X)
         
-        ttk.Label(datetime_frame, text="Pickup Date:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Separator(datetime_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(0, 20))
+        
+        dt_inner = ttk.Frame(datetime_frame)
+        dt_inner.pack(fill=tk.X)
+        
+        ttk.Label(dt_inner, text="Date:").pack(side=tk.LEFT)
         today = datetime.datetime.now()
         dates = [(today + datetime.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(14)]
-        self.date_cb = ttk.Combobox(datetime_frame, values=dates, state="readonly", width=12)
+        self.date_cb = ttk.Combobox(dt_inner, values=dates, state="readonly", width=12)
         self.date_cb.set(dates[0])
-        self.date_cb.grid(row=0, column=1, sticky=tk.W, padx=10, pady=2)
+        self.date_cb.pack(side=tk.LEFT, padx=(5, 20))
         
+        ttk.Label(dt_inner, text="Ready:").pack(side=tk.LEFT)
         times = [f"{str(h).zfill(2)}:00" for h in range(8, 19)]
-        ttk.Label(datetime_frame, text="Ready Time:").grid(row=0, column=2, sticky=tk.W, pady=2)
-        self.ready_cb = ttk.Combobox(datetime_frame, values=times, state="readonly", width=8)
+        self.ready_cb = ttk.Combobox(dt_inner, values=times, state="readonly", width=8)
         self.ready_cb.set("09:00")
-        self.ready_cb.grid(row=0, column=3, sticky=tk.W, padx=10, pady=2)
+        self.ready_cb.pack(side=tk.LEFT, padx=(5, 20))
         
-        ttk.Label(datetime_frame, text="Close Time:").grid(row=0, column=4, sticky=tk.W, pady=2)
-        self.close_cb = ttk.Combobox(datetime_frame, values=times, state="readonly", width=8)
+        ttk.Label(dt_inner, text="Close:").pack(side=tk.LEFT)
+        self.close_cb = ttk.Combobox(dt_inner, values=times, state="readonly", width=8)
         self.close_cb.set("17:00")
-        self.close_cb.grid(row=0, column=5, sticky=tk.W, padx=10, pady=2)
+        self.close_cb.pack(side=tk.LEFT, padx=(5, 0))
         
         # Action Buttons
-        btn_frame = ttk.Frame(main_frame, padding="20")
+        btn_frame = ttk.Frame(main_frame, padding=(0, 20))
         btn_frame.pack(fill=tk.X)
         
-        submit_btn = ttk.Button(btn_frame, text="Generate Pickup", command=self.submit_pickup)
+        submit_btn = ttk.Button(btn_frame, text="Generate Pickup", style="Accent.TButton", command=self.submit_pickup)
         submit_btn.pack(side=tk.RIGHT)
         
         cancel_btn = ttk.Button(btn_frame, text="Cancel Pickup", command=self.cancel_pickup_gui)
@@ -122,20 +195,25 @@ class UPSPickupGUI:
         main_frame = ttk.Frame(self.batch_tab, padding="20")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(main_frame, text="Paste Multiple Addresses Here (Preferred: double newlines, but single lines also work):").pack(anchor=tk.W)
-        self.batch_text = tk.Text(main_frame, height=10, font=("Helvetica", 10))
-        self.batch_text.pack(fill=tk.X, pady=(0, 10))
+        # Address Paste Area
+        ttk.Label(main_frame, text="Batch Addresses:", font=self.header_font).pack(anchor=tk.W, pady=(0, 5))
+        self.batch_text = tk.Text(main_frame, height=5, font=self.main_font, borderwidth=1, relief=tk.SOLID)
+        self.batch_text.pack(fill=tk.X, pady=(0, 15))
 
-        # Batch Defaults
-        defaults_frame = ttk.LabelFrame(main_frame, text="Batch Default Values (Used if field missing in paste)", padding="10")
-        defaults_frame.pack(fill=tk.X, pady=10)
-
+        # Batch Defaults (Card Style)
+        defaults_card = ttk.Frame(main_frame, style="Card.TFrame", padding=20)
+        defaults_card.pack(fill=tk.X, pady=10)
+        
+        ttk.Label(defaults_card, text="Processing Defaults", font=self.bold_font, background="white").grid(row=0, column=0, columnspan=6, sticky=tk.W, pady=(0, 15))
+        
         self.batch_defaults = {}
         batch_field_labels = ["CompanyName", "ContactName", "Phone", "Email", "ServiceCode"]
         for i, label in enumerate(batch_field_labels):
-            ttk.Label(defaults_frame, text=f"{label}:").grid(row=i//2, column=(i%2)*2, sticky=tk.W, pady=2)
-            entry = ttk.Entry(defaults_frame, width=20)
-            entry.grid(row=i//2, column=(i%2)*2+1, sticky=tk.W, padx=10, pady=2)
+            row = (i // 3) + 1
+            col = (i % 3) * 2
+            ttk.Label(defaults_card, text=f"{label}:", background="white", font=self.main_font).grid(row=row, column=col, sticky=tk.W, pady=8, padx=(0, 5))
+            entry = ttk.Entry(defaults_card, width=18)
+            entry.grid(row=row, column=col+1, sticky=tk.W, padx=(0, 15), pady=8)
             self.batch_defaults[label] = entry
 
         # Defaults set
@@ -193,16 +271,19 @@ class UPSPickupGUI:
         self.next_btn.pack(side=tk.LEFT, padx=10)
 
         # Buttons Frame
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(pady=10)
+        btn_frame = ttk.Frame(main_frame, padding=(0, 20))
+        btn_frame.pack(fill=tk.X)
+        
+        ttk.Separator(btn_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(0, 20))
 
-        self.run_batch_btn = ttk.Button(btn_frame, text="Process Batch (Up to 150)", command=self.start_batch_thread)
-        self.run_batch_btn.pack(side=tk.LEFT, padx=5)
+        self.run_batch_btn = ttk.Button(btn_frame, text="Process Batch", style="Accent.TButton", command=self.start_batch_thread)
+        self.run_batch_btn.pack(side=tk.RIGHT)
 
-        self.stop_batch_btn = ttk.Button(btn_frame, text="Stop Batch", command=self.stop_current_batch, state=tk.DISABLED)
-        self.stop_batch_btn.pack(side=tk.LEFT, padx=5)
+        self.stop_batch_btn = ttk.Button(btn_frame, text="Stop", command=self.stop_current_batch, state=tk.DISABLED)
+        self.stop_batch_btn.pack(side=tk.RIGHT, padx=10)
 
-        ttk.Button(btn_frame, text="View History / Cancel", command=self.show_history_window).pack(side=tk.LEFT, padx=5)
+        history_btn = ttk.Button(btn_frame, text="View History & Cancel", command=self.show_history_window)
+        history_btn.pack(side=tk.LEFT)
 
     def parse_and_fill(self):
         raw_address = self.address_text.get("1.0", tk.END).strip()
@@ -279,6 +360,15 @@ class UPSPickupGUI:
         
         if messagebox.askyesno("Audit Confirmation", f"Schedule pickup for {pickup_data['Street']}?"):
             try:
+                # 0. Assign service code based on country
+                country = pickup_data.get("Country", "")
+                if country == "CA":
+                    pickup_data["ServiceCode"] = "011"
+                elif country == "US":
+                    pickup_data["ServiceCode"] = "003"
+                else:
+                    pickup_data["ServiceCode"] = "007"  # UPS Worldwide Express for international
+
                 # 1. Automate return label if no unique tracking is provided
                 if pickup_data["TrackingNumber"] == "1Z4A059A9190837115":
                     # If it's the default, let's try to generate a unique one
@@ -299,14 +389,27 @@ class UPSPickupGUI:
 
     def handle_api_result(self, result, pickup_data):
         prn = ""
+        error_info = ""
+        
         if "PickupCreationResponse" in result and "PRN" in result["PickupCreationResponse"]:
             prn = result["PickupCreationResponse"]["PRN"]
+            self.status_var.set(f"Success: {prn}")
             self.show_success_dialog(prn, pickup_data)
         elif "response" in result and "errors" in result.get("response", {}):
-             error_msg = json.dumps(result, indent=2)
-             messagebox.showerror("API Error", f"Failed to schedule pickup:\n{error_msg}")
+            errors = result["response"]["errors"]
+            # Map errors to friendly names
+            friendly_errors = []
+            for err in errors:
+                code = err.get("code")
+                msg = UPS_ERROR_MAP.get(code, err.get("message"))
+                friendly_errors.append(f"• [{code}] {msg}")
+            
+            error_info = "\n".join(friendly_errors)
+            self.status_var.set("Pickup Failed - Check Details")
+            messagebox.showerror("Pickup Rejection", f"The request was rejected by UPS:\n\n{error_info}")
         else:
             msg = json.dumps(result, indent=2)
+            self.status_var.set("Unexpected Response")
             messagebox.showinfo("API Response", f"Response details:\n{msg}")
             
         # Log to history
@@ -325,27 +428,39 @@ class UPSPickupGUI:
 
     def show_success_dialog(self, prn, pickup_data):
         top = tk.Toplevel(self.root)
-        top.title("Pickup Scheduled Successfully")
-        top.geometry("400x350")
+        top.title("Success")
+        top.geometry("420x400")
+        top.configure(bg="white")
         top.transient(self.root)
         top.grab_set()
 
-        msg = "Pickup Successfully Scheduled!\n\n"
-        msg += f"PRN: {prn}\n"
+        header = ttk.Label(top, text="Pickup Scheduled", font=self.header_font, background="white")
+        header.pack(pady=(20, 10))
+
+        msg = f"PRN: {prn}\n"
         msg += f"Date: {pickup_data.get('PickupDate')}\n"
         msg += f"Time: {pickup_data.get('ReadyTime')} - {pickup_data.get('CloseTime')}\n"
         msg += f"Address: {pickup_data.get('Street')}\n\n"
-        msg += "Please provide this information to the client."
+        msg += "Provide this to the client."
         
-        lbl = ttk.Label(top, text="Copy the information below:")
-        lbl.pack(pady=(10, 0), padx=10, anchor=tk.W)
-        
-        txt = tk.Text(top, height=12, width=45, font=("Helvetica", 10))
+        txt = tk.Text(top, height=8, width=40, font=self.main_font, bg="#F5F5F7", borderwidth=0, padx=10, pady=10)
         txt.insert(tk.END, msg)
-        txt.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        txt.pack(padx=20, pady=10, fill=tk.BOTH, expand=True)
         
-        btn = ttk.Button(top, text="Close", command=top.destroy)
-        btn.pack(pady=(0, 10))
+        def copy_to_clipboard():
+            self.root.clipboard_clear()
+            self.root.clipboard_append(msg)
+            self.status_var.set("Copied to Clipboard!")
+            messagebox.showinfo("Copied", "Details copied.")
+
+        btn_frame = ttk.Frame(top, background="white", padding=20)
+        btn_frame.pack(fill=tk.X)
+
+        copy_btn = ttk.Button(btn_frame, text="Copy Details", style="Accent.TButton", command=copy_to_clipboard)
+        copy_btn.pack(side=tk.RIGHT)
+        
+        close_btn = ttk.Button(btn_frame, text="Close", command=top.destroy)
+        close_btn.pack(side=tk.RIGHT, padx=10)
 
     def stop_current_batch(self):
         self.stop_batch = True
@@ -389,22 +504,25 @@ class UPSPickupGUI:
                 self.batch_tree.insert("", tk.END, values=(block[:50]+"...", "Error", "Parsing Failed"))
                 continue
                 
-            # Use batch default country if parser didn't find one or if it's US and batch default is CA
-            if not parsed.get("Country") or (parsed.get("Country") == "US" and default_country == "CA"):
+            # Use batch default country if parser didn't find one
+            if not parsed.get("Country"):
                  parsed["Country"] = default_country
 
             # Smart Service Code Selection based on Country
-            service_code = defaults.get("ServiceCode")
-            if parsed.get("Country") == "CA":
+            service_code = defaults.get("ServiceCode", "011")
+            country = parsed.get("Country", "")
+            if country == "CA":
                 service_code = "011" # UPS Standard for Canada
-            elif parsed.get("Country") == "US":
+            elif country == "US":
                 service_code = "003" # UPS Ground for US
+            else:
+                service_code = "007" # UPS Worldwide Express for international
             
-            # Pre-validation
+            # Pre-validation — State not required for international addresses
             missing = []
             if not parsed.get("Street"): missing.append("Street")
             if not parsed.get("City"): missing.append("City")
-            if not parsed.get("State"): missing.append("State")
+            if not parsed.get("State") and country in ("CA", "US"): missing.append("State")
             if not parsed.get("Zip"): missing.append("Zip")
             
             if missing:
@@ -610,7 +728,7 @@ class UPSPickupGUI:
                     details_win.geometry("500x400")
                     
                     # Extract useful fields from UPS response if possible
-                    txt = tk.Text(details_win, padding=10, font=("Helvetica", 10))
+                    txt = tk.Text(details_win, padx=10, pady=10, font=self.main_font, bg="#F5F5F7", borderwidth=0)
                     txt.pack(fill=tk.BOTH, expand=True)
                     
                     # Simple formatting of the JSON response

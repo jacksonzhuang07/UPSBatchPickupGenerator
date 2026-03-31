@@ -8,6 +8,39 @@ PROVINCES = {
     'NT': 'Northwest Territories', 'NU': 'Nunavut'
 }
 
+STATES = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming'
+}
+
+COUNTRIES = {
+    'AFGHANISTAN': 'AF', 'ALBANIA': 'AL', 'ALGERIA': 'DZ', 'ARGENTINA': 'AR', 'AUSTRALIA': 'AU',
+    'AUSTRIA': 'AT', 'BAHRAIN': 'BH', 'BANGLADESH': 'BD', 'BELGIUM': 'BE', 'BRAZIL': 'BR',
+    'BULGARIA': 'BG', 'CANADA': 'CA', 'CHILE': 'CL', 'CHINA': 'CN', 'COLOMBIA': 'CO',
+    'CROATIA': 'HR', 'CZECH REPUBLIC': 'CZ', 'DENMARK': 'DK', 'ECUADOR': 'EC', 'EGYPT': 'EG',
+    'ESTONIA': 'EE', 'FINLAND': 'FI', 'FRANCE': 'FR', 'GERMANY': 'DE', 'GHANA': 'GH',
+    'GREECE': 'GR', 'HONG KONG': 'HK', 'HUNGARY': 'HU', 'INDIA': 'IN', 'INDONESIA': 'ID',
+    'IRAN': 'IR', 'IRAQ': 'IQ', 'IRELAND': 'IE', 'ISRAEL': 'IL', 'ITALY': 'IT',
+    'JAPAN': 'JP', 'JORDAN': 'JO', 'KENYA': 'KE', 'KOREA': 'KR', 'SOUTH KOREA': 'KR',
+    'KUWAIT': 'KW', 'LATVIA': 'LV', 'LEBANON': 'LB', 'LITHUANIA': 'LT', 'LUXEMBOURG': 'LU',
+    'MALAYSIA': 'MY', 'MEXICO': 'MX', 'MOROCCO': 'MA', 'NETHERLANDS': 'NL', 'NEW ZEALAND': 'NZ',
+    'NIGERIA': 'NG', 'NORWAY': 'NO', 'OMAN': 'OM', 'PAKISTAN': 'PK', 'PERU': 'PE',
+    'PHILIPPINES': 'PH', 'POLAND': 'PL', 'PORTUGAL': 'PT', 'QATAR': 'QA', 'ROMANIA': 'RO',
+    'RUSSIA': 'RU', 'SAUDI ARABIA': 'SA', 'SINGAPORE': 'SG', 'SLOVAKIA': 'SK', 'SLOVENIA': 'SI',
+    'SOUTH AFRICA': 'ZA', 'SPAIN': 'ES', 'SRI LANKA': 'LK', 'SWEDEN': 'SE', 'SWITZERLAND': 'CH',
+    'TAIWAN': 'TW', 'THAILAND': 'TH', 'TUNISIA': 'TN', 'TURKEY': 'TR', 'UKRAINE': 'UA',
+    'UNITED ARAB EMIRATES': 'AE', 'UAE': 'AE', 'UNITED KINGDOM': 'GB', 'UK': 'GB',
+    'UNITED STATES': 'US', 'USA': 'US', 'VENEZUELA': 'VE', 'VIETNAM': 'VN'
+}
+
 def parse_address_string(address_str):
     """
     Parses a single address block into a dictionary of fields.
@@ -72,23 +105,49 @@ def parse_address_string(address_str):
 
         # Identify Country/State indicators
         for i, line in enumerate(lines):
-            # Proactive Province/Country Detection
-            ca_indicators = ['Canada', 'ONTARIO', 'QUEBEC', 'ALBERTA', 'BC', 'NOVA SCOTIA']
-            if any(ind.upper() in line.upper() for ind in ca_indicators):
+            # Check for country name (full text → ISO code)
+            line_upper_stripped = line.strip().upper()
+            if line_upper_stripped in COUNTRIES:
+                parsed['Country'] = COUNTRIES[line_upper_stripped]
+                lines[i] = ''  # Remove the country line from remaining processing
+                continue
+            # Also check if country name appears anywhere in the line (e.g., "Barcelona, Spain")
+            for country_name, country_code in COUNTRIES.items():
+                if re.search(r'\b' + re.escape(country_name) + r'\b', line_upper_stripped):
+                    parsed['Country'] = country_code
+                    lines[i] = re.sub(r'\b' + re.escape(country_name) + r'\b', '', line, flags=re.IGNORECASE).strip().strip(',')
+                    break
+            
+            # Proactive CA Province detection
+            ca_indicators = ['ONTARIO', 'QUEBEC', 'ALBERTA', 'NOVA SCOTIA']
+            if any(ind in line_upper_stripped for ind in ca_indicators):
                 parsed['Country'] = 'CA'
-                
+
+            # Check CA Provinces
             for code, name in PROVINCES.items():
                 if re.search(r'\b' + code + r'\b', line.upper()) or re.search(r'\b' + name.upper() + r'\b', line.upper()):
                     parsed['State'] = code
                     parsed['Country'] = 'CA'
                     break
+            
+            if parsed['State']: continue
 
+            # Check US States
+            for code, name in STATES.items():
+                if re.search(r'\b' + code + r'\b', line.upper()) or re.search(r'\b' + name.upper() + r'\b', line.upper()):
+                    parsed['State'] = code
+                    parsed['Country'] = 'US'
+                    break
+
+        lines = [l for l in lines if l]
         # 3. Identify Company and Contact (Heuristic)
         # Find the street address line. It usually starts with a digit or looks like a Po Box.
+        STREET_KEYWORDS = [' ave', ' ave.', ' st', ' st.', ' rd', ' rd.', ' blvd', ' street',
+                           ' avenue', ' road', ' p.o', ' box ', ' calle', ' carrer', ' rue',
+                           ' via ', ' corso', ' viale', ' way', ' dr', ' drive', ' ln', ' lane']
         street_idx = -1
         for i, line in enumerate(lines):
-            # Check if line looks like an address (starts with number, or contains 'Ave', 'St', 'Rd', 'P.O', etc.)
-            if re.match(r'^\d+', line) or any(keyword in line.lower() for keyword in [' ave', ' ave.', ' st', ' st.', ' rd', ' rd.', ' blvd', ' street', ' avenue', ' road', ' p.o', ' box ']):
+            if re.match(r'^\d+', line) or any(keyword in line.lower() for keyword in STREET_KEYWORDS):
                 street_idx = i
                 break
         
@@ -167,6 +226,22 @@ def parse_address_string(address_str):
             
             if tagged_address.get('OccupancyType'):
                 parsed['Suite'] = f"{tagged_address.get('OccupancyType')} {parsed['Suite']}".strip()
+
+        # 5. Normalize State/Province to 2-letter codes
+        if parsed['State']:
+            state_upper = parsed['State'].strip().upper()
+            # Map Full Name -> Code for Provinces
+            name_to_code_prov = {v.upper(): k for k, v in PROVINCES.items()}
+            if state_upper in name_to_code_prov:
+                parsed['State'] = name_to_code_prov[state_upper]
+            else:
+                # Map Full Name -> Code for States
+                name_to_code_state = {v.upper(): k for k, v in STATES.items()}
+                if state_upper in name_to_code_state:
+                    parsed['State'] = name_to_code_state[state_upper]
+                # If it's already a code or not found, leave as is (but uppercase)
+                elif len(state_upper) == 2:
+                    parsed['State'] = state_upper
 
         return parsed
     except Exception as e:

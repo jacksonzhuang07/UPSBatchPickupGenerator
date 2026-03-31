@@ -51,5 +51,18 @@ class TestAddressParser(unittest.TestCase):
         self.assertTrue(len(parsed['Street']) > 0, "Street should not be empty")
         self.assertTrue("5750" in parsed['Street'])
 
+    def test_state_normalization(self):
+        # Canadian Province Full Name
+        addr = "117 Lindsay Avenue, Dorval, Quebec H9P2S6"
+        parsed = parse_address_string(addr)
+        self.assertEqual(parsed['State'], "QC")
+        self.assertEqual(parsed['Country'], "CA")
+
+        # US State Full Name
+        addr = "1 Lincol Blvd, Rouses Point, New York 12979"
+        parsed = parse_address_string(addr)
+        self.assertEqual(parsed['State'], "NY")
+        self.assertEqual(parsed['Country'], "US")
+
 if __name__ == "__main__":
     unittest.main()
