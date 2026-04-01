@@ -160,11 +160,18 @@ class UPSApiClient:
                 "ConfirmationEmailAddress": email
             }
         
-        logging.info(f"[API Request] create_pickup - URL: {url}\nPayload: {json.dumps(request_payload)}")
-        print(f"[API] Creating Pickup for {request_payload['PickupCreationRequest']['PickupDateInfo']['PickupDate']} @ {request_payload['PickupCreationRequest']['PickupDateInfo']['ReadyTime']}-{request_payload['PickupCreationRequest']['PickupDateInfo']['CloseTime']} Local")
-        print(f"      Address: {pickup_data.get('Street')} ({pickup_data.get('Country')}) - Tracking: {tracking_num}")
+        logging.info(f"[API Request] create_pickup - URL: {url}\nPayload: {json.dumps(request_payload, indent=2)}")
+        print(f"\n--- [UPS API REQUEST: CREATE PICKUP] ---")
+        print(f"URL: {url}")
+        print(f"Headers: {json.dumps({k:v for k,v in headers.items() if k != 'Authorization'}, indent=2)} (Auth Hidden)")
+        print(f"Payload:\n{json.dumps(request_payload, indent=2)}")
+        
         response = requests.post(url, headers=headers, json=request_payload)
         logging.info(f"[API Response] create_pickup - Status {response.status_code}: {response.text}")
+        print(f"\n--- [UPS API RESPONSE] ---")
+        print(f"Status: {response.status_code}")
+        print(f"Body: {response.text}")
+        print(f"----------------------------------------\n")
         
         try:
             return response.json()
@@ -306,8 +313,16 @@ class UPSApiClient:
         }
         
         logging.info(f"[API Request] cancel_pickup - URL: {url}\nHeaders: {headers}")
+        print(f"\n--- [UPS API REQUEST: CANCEL PICKUP] ---")
+        print(f"URL: {url}")
+        print(f"Headers: {json.dumps({k:v for k,v in headers.items() if k != 'Authorization'}, indent=2)} (Auth Hidden)")
+        
         response = requests.delete(url, headers=headers)
         logging.info(f"[API Response] cancel_pickup - Status {response.status_code}: {response.text}")
+        print(f"\n--- [UPS API RESPONSE] ---")
+        print(f"Status: {response.status_code}")
+        print(f"Body: {response.text}")
+        print(f"----------------------------------------\n")
         
         if response.status_code == 204:
             return {"status": "success", "message": "Pickup cancelled successfully (204 No Content)."}
@@ -334,8 +349,16 @@ class UPSApiClient:
         }
         
         logging.info(f"[API Request] get_pickup_status - URL: {url}")
+        print(f"\n--- [UPS API REQUEST: GET STATUS] ---")
+        print(f"URL: {url}")
+        print(f"Headers: {json.dumps({k:v for k,v in headers.items() if k != 'Authorization'}, indent=2)} (Auth Hidden)")
+        
         response = requests.get(url, headers=headers)
         logging.info(f"[API Response] get_pickup_status - Status {response.status_code}: {response.text}")
+        print(f"\n--- [UPS API RESPONSE] ---")
+        print(f"Status: {response.status_code}")
+        print(f"Body: {response.text}")
+        print(f"--------------------------------------\n")
         
         if response.status_code == 200:
             return response.json()
