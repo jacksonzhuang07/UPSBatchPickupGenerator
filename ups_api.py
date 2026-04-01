@@ -328,6 +328,7 @@ class UPSApiClient:
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
+            'AccountNumber': self.account_number,
             'transId': str(uuid.uuid4()),
             'transactionSrc': 'OmnitransInc'
         }
