@@ -297,9 +297,7 @@ class UPSApiClient:
         if not self.token:
             self.get_access_token()
             
-        # The exact cancel URL can vary depending on the API subversion
-        # '02' in the path indicates we are cancelling by Pickup Request Number (PRN)
-        url = f"{self.base_url}/shipments/v2403/pickup/02"
+        url = f"{self.base_url}/pickupcreation/v2403/pickup/02"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'transId': f'cancel_{prn}',
@@ -313,12 +311,35 @@ class UPSApiClient:
         
         if response.status_code == 204:
             return {"status": "success", "message": "Pickup cancelled successfully (204 No Content)."}
-        elif response.status_code == 200:
+        try:
+            return response.json()
+        except:
+            return {"status": "error", "message": f"Raw response: {response.text}"}
+
+    def get_pickup_status(self, prn):
+        """
+        Retrieves real-time status for a scheduled pickup.
+        """
+        if not self.token:
+            self.get_access_token()
+            
+        url = f"{self.base_url}/pickupcreation/v2403/pickup/{prn}"
+        headers = {
+            'Authorization': f'Bearer {self.token}',
+            'transId': f'status_{prn}',
+            'transactionSrc': 'testing'
+        }
+        
+        logging.info(f"[API Request] get_pickup_status - URL: {url}")
+        response = requests.get(url, headers=headers)
+        logging.info(f"[API Response] get_pickup_status - Status {response.status_code}: {response.text}")
+        
+        if response.status_code == 200:
             return response.json()
         try:
             return response.json()
-        except Exception:
-            return {"status": "error", "message": f"Raw response: {response.text}"}
+        except:
+            raise Exception(f"HTTP {response.status_code}: {response.text}")
 
 if __name__ == "__main__":
     # This would require credentials in .env to run
