@@ -752,13 +752,18 @@ class UPSPickupGUI:
                     if entry:
                         try:
                             res = self.api_client.cancel_pickup(prn)
-                            if res.get("status") == "success" or "error" not in str(res).lower():
+                            # Handle success or "already canceled" (Error 9510131)
+                            res_str = str(res)
+                            is_success = res.get("status") == "success" or "error" not in res_str.lower()
+                            is_already_canceled = "9510131" in res_str
+                            
+                            if is_success or is_already_canceled:
                                 success_count += 1
                                 tree.set(item_iid, "Status", "Cancelled")
                                 entry["status"] = "Cancelled"
                             else:
                                 fail_count += 1
-                        except Exception as e:
+                        except Exception:
                             fail_count += 1
             
             # Save history back to file to persist cancellations
@@ -831,8 +836,17 @@ class UPSPickupGUI:
                     txt.insert(tk.END, f"Recorded At:  {local_entry.get('timestamp', 'N/A') if local_entry else 'N/A'}\n")
                     
                     if not errors:
+                        # Update Treeview and local history with the live status
+                        live_msg = details.get('StatusMessage', 'N/A')
+                        if live_msg and live_msg != "N/A":
+                            tree.set(item_iid, "Status", live_msg)
+                            if local_entry:
+                                local_entry["status"] = live_msg
+                        
                         txt.insert(tk.END, "\n─── Full API Trace ───\n")
-                        txt.insert(tk.END, json.dumps(res, indent=2))
+                        # Show only the relevant PRN data from the trace if found
+                        relevant_data = res.get("PickupStatusResponse", res)
+                        txt.insert(tk.END, json.dumps(relevant_data, indent=2))
 
                 except Exception as e:
                     txt.insert(tk.END, f"⚠ Could not reach UPS API: {str(e)}\n\n")
