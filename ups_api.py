@@ -307,7 +307,6 @@ class UPSApiClient:
         url = f"{self.base_url}/pickupcreation/v2403/pickup/02"
         headers = {
             'Authorization': f'Bearer {self.token}',
-            'AccountNumber': self.account_number,
             'transId': f'cancel_{prn}',
             'transactionSrc': 'testing',
             'Prn': prn
@@ -339,13 +338,13 @@ class UPSApiClient:
         # Always refresh token to avoid stale token 250002 errors
         self.get_access_token()
             
-        # Standardize on v2403 as verified in create_pickup
-        url = f"{self.base_url}/pickupcreation/v2403/pickup/both"
+        # Using shipperNumber as a query parameter instead of AccountNumber header
+        # to avoid 401 rejection on v2403 endpoint.
+        url = f"{self.base_url}/pickupcreation/v2403/pickup/both?shipperNumber={self.account_number}"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'AccountNumber': self.account_number,
             'transId': str(uuid.uuid4()),
             'transactionSrc': 'testing'
         }
