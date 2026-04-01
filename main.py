@@ -389,17 +389,29 @@ class UPSPickupGUI:
             except Exception as e:
                 messagebox.showerror("API Error", str(e))
 
-    def handle_api_result(self, result, pickup_data):
-        prn = ""
-        error_info = ""
-        
+        # Extract PRN if success
         if "PickupCreationResponse" in result and "PRN" in result["PickupCreationResponse"]:
             prn = result["PickupCreationResponse"]["PRN"]
+
+        # Log to history IMMEDIATELY
+        full_addr = f"{pickup_data.get('Street', '')}, {pickup_data.get('City', '')}, {pickup_data.get('State', '')} {pickup_data.get('Zip', '')}, {pickup_data.get('Country', '')}".strip(", ")
+        entry = {
+            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "company": pickup_data.get("CompanyName", ""),
+            "address": full_addr,
+            "date": pickup_data.get("PickupDate", ""),
+            "status": "Success" if prn else "Failed",
+            "prn": prn,
+            "details": pickup_data
+        }
+        self.save_to_history(entry)
+
+        # Now show UI feedback
+        if prn:
             self.status_var.set(f"Success: {prn}")
             self.show_success_dialog(prn, pickup_data)
         elif "response" in result and "errors" in result.get("response", {}):
             errors = result["response"]["errors"]
-            # Map errors to friendly names
             friendly_errors = []
             for err in errors:
                 code = err.get("code")
@@ -413,20 +425,6 @@ class UPSPickupGUI:
             msg = json.dumps(result, indent=2)
             self.status_var.set("Unexpected Response")
             messagebox.showinfo("API Response", f"Response details:\n{msg}")
-            
-        # Log to history
-        full_addr = f"{pickup_data.get('Street', '')}, {pickup_data.get('City', '')}, {pickup_data.get('State', '')} {pickup_data.get('Zip', '')}, {pickup_data.get('Country', '')}".strip(", ")
-        
-        entry = {
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "company": pickup_data.get("CompanyName", ""),
-            "address": full_addr,
-            "date": pickup_data.get("PickupDate", ""),
-            "status": "Success" if prn else "Failed",
-            "prn": prn,
-            "details": pickup_data # Save full data for robust reporting
-        }
-        self.save_to_history(entry)
 
     def show_success_dialog(self, prn, pickup_data):
         top = tk.Toplevel(self.root)
