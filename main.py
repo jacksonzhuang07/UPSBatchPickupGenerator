@@ -714,7 +714,7 @@ class UPSPickupGUI:
                 return
             item_iid = selection[0]
             values = tree.item(item_iid, "values")
-            prn = values[5]
+            prn = values[6]  # Column 6 = PRN (0:Timestamp, 1:Company, 2:Address, 3:Date, 4:Time, 5:Status, 6:PRN)
             
             if prn:
                 # PRN Verification Pop-up
@@ -861,7 +861,7 @@ class UPSPickupGUI:
             
             for item_iid in selected_items:
                 values = tree.item(item_iid, "values")
-                prn = values[5] # PRN is the 6th column
+                prn = values[6]  # PRN is index 6 (0:Timestamp,1:Company,2:Address,3:Date,4:Time,5:Status,6:PRN)
                 
                 if prn:
                     # Find the entry in history
