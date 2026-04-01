@@ -18,8 +18,8 @@ class UPSApiClient:
     def __init__(self):
         self.client_id = os.getenv("UPS_CLIENT_ID", "GYLxTKSD7jpnoDnBrGbF2Jk0Uv3MEwPBGSwvBfZQI3DW04nS")
         self.client_secret = os.getenv("UPS_CLIENT_SECRET", "PBJtFdVhZWXfvq6CegMiX3aaUl71cGWkmu2Um5tg4crTkXQUG3hzwehQiGK7EsDg")
-        self.account_number = os.getenv("UPS_ACCOUNT_NUMBER", "4a059a")
-        self.account_country = os.getenv("UPS_ACCOUNT_COUNTRY", "CA")
+        self.account_number = os.getenv("UPS_ACCOUNT_NUMBER", "4a059a").upper()
+        self.account_country = os.getenv("UPS_ACCOUNT_COUNTRY", "CA").upper()
         self.env = os.getenv("UPS_ENVIRONMENT", "production") 
         
         if self.env == "production":
