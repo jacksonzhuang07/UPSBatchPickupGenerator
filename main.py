@@ -388,47 +388,47 @@ class UPSPickupGUI:
 
                 # 3. Call the pickup API
                 result = self.api_client.create_pickup(pickup_data)
-                self.handle_api_result(result, pickup_data)
+
+                # 4. Extract PRN if success
+                prn = ""
+                if "PickupCreationResponse" in result and "PRN" in result["PickupCreationResponse"]:
+                    prn = result["PickupCreationResponse"]["PRN"]
+
+                # 5. Log to history IMMEDIATELY
+                full_addr = f"{pickup_data.get('Street', '')}, {pickup_data.get('City', '')}, {pickup_data.get('State', '')} {pickup_data.get('Zip', '')}, {pickup_data.get('Country', '')}".strip(", ")
+                entry = {
+                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "company": pickup_data.get("CompanyName", ""),
+                    "address": full_addr,
+                    "date": pickup_data.get("PickupDate", ""),
+                    "status": "Success" if prn else "Failed",
+                    "prn": prn,
+                    "details": pickup_data
+                }
+                self.save_to_history(entry)
+
+                # 6. Now show UI feedback
+                if prn:
+                    self.status_var.set(f"Success: {prn}")
+                    self.show_success_dialog(prn, pickup_data)
+                elif "response" in result and "errors" in result.get("response", {}):
+                    errors = result["response"]["errors"]
+                    friendly_errors = []
+                    for err in errors:
+                        code = err.get("code")
+                        msg = UPS_ERROR_MAP.get(code, err.get("message"))
+                        friendly_errors.append(f"• [{code}] {msg}")
+                    
+                    error_info = "\n".join(friendly_errors)
+                    self.status_var.set("Pickup Failed - Check Details")
+                    messagebox.showerror("Pickup Rejection", f"The request was rejected by UPS:\n\n{error_info}")
+                else:
+                    msg = json.dumps(result, indent=2)
+                    self.status_var.set("Unexpected Response")
+                    messagebox.showinfo("API Response", f"Response details:\n{msg}")
             except Exception as e:
                 logging.error(f"Exception in submit_pickup: {str(e)}")
                 messagebox.showerror("API Error", str(e))
-
-        # Extract PRN if success
-        if "PickupCreationResponse" in result and "PRN" in result["PickupCreationResponse"]:
-            prn = result["PickupCreationResponse"]["PRN"]
-
-        # Log to history IMMEDIATELY
-        full_addr = f"{pickup_data.get('Street', '')}, {pickup_data.get('City', '')}, {pickup_data.get('State', '')} {pickup_data.get('Zip', '')}, {pickup_data.get('Country', '')}".strip(", ")
-        entry = {
-            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "company": pickup_data.get("CompanyName", ""),
-            "address": full_addr,
-            "date": pickup_data.get("PickupDate", ""),
-            "status": "Success" if prn else "Failed",
-            "prn": prn,
-            "details": pickup_data
-        }
-        self.save_to_history(entry)
-
-        # Now show UI feedback
-        if prn:
-            self.status_var.set(f"Success: {prn}")
-            self.show_success_dialog(prn, pickup_data)
-        elif "response" in result and "errors" in result.get("response", {}):
-            errors = result["response"]["errors"]
-            friendly_errors = []
-            for err in errors:
-                code = err.get("code")
-                msg = UPS_ERROR_MAP.get(code, err.get("message"))
-                friendly_errors.append(f"• [{code}] {msg}")
-            
-            error_info = "\n".join(friendly_errors)
-            self.status_var.set("Pickup Failed - Check Details")
-            messagebox.showerror("Pickup Rejection", f"The request was rejected by UPS:\n\n{error_info}")
-        else:
-            msg = json.dumps(result, indent=2)
-            self.status_var.set("Unexpected Response")
-            messagebox.showinfo("API Response", f"Response details:\n{msg}")
 
     def show_success_dialog(self, prn, pickup_data):
         top = tk.Toplevel(self.root)
