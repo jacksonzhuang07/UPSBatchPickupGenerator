@@ -333,12 +333,14 @@ class UPSApiClient:
 
     def get_pickup_status(self, prn):
         """
-        Retrieves real-time status for a scheduled pickup.
+        Retrieves real-time pending pickup list and filters for the specific PRN.
         """
         # Always refresh token to avoid stale token 250002 errors
         self.get_access_token()
             
-        url = f"{self.base_url}/pickupcreation/v2403/pickup/{prn}?AccountNumber={self.account_number}"
+        # The correct structural URL for pending status in v2409/v2403
+        # PRN is NOT a path parameter for status; 'both' or 'oncall' is.
+        url = f"{self.base_url}/pickupcreation/v2409/pickup/both"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
@@ -349,7 +351,7 @@ class UPSApiClient:
         }
         
         logging.info(f"[API Request] get_pickup_status - URL: {url}")
-        print(f"\n--- [UPS API REQUEST: GET STATUS] ---")
+        print(f"\n--- [UPS API REQUEST: GET ALL PENDING] ---")
         print(f"URL: {url}")
         print(f"Headers: {json.dumps({k:v for k,v in headers.items() if k != 'Authorization'}, indent=2)} (Auth Hidden)")
         
@@ -361,7 +363,32 @@ class UPSApiClient:
         print(f"--------------------------------------\n")
         
         if response.status_code == 200:
-            return response.json()
+            res_json = response.json()
+            # Find the specific PRN in the pending list
+            if prn:
+                # The response structure usually contains a 'PendingStatus' list under PickupPendingStatusResponse
+                pending_response = res_json.get("PickupPendingStatusResponse", {})
+                pending_list = pending_response.get("PendingStatus", [])
+                
+                # Some API versions return a single object instead of a list if only one exists
+                if isinstance(pending_list, dict):
+                    pending_list = [pending_list]
+                    
+                match = next((item for item in pending_list if item.get("PickupRequestNumber") == prn), None)
+                if match:
+                    # Map the found item to our expected internal structure
+                    return {
+                        "status": "success", 
+                        "PickupStatusResponse": {
+                            "StatusCode": match.get("StatusCode", "N/A"),
+                            "PickupDate": match.get("PickupDate", "N/A"),
+                            "ReadyTime": match.get("ReadyTime", "N/A"),
+                            "CloseTime": match.get("CloseTime", "N/A")
+                        },
+                        "full_response": res_json
+                    }
+            return res_json
+        
         try:
             return response.json()
         except:
