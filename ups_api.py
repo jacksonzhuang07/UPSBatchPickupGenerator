@@ -48,6 +48,13 @@ class UPSApiClient:
         logging.info(f"Issuing OAuth Token Request to: {url}")
         response = requests.post(url, data=payload, auth=(self.client_id, self.client_secret), headers=headers)
         logging.info(f"OAuth Response {response.status_code}: {response.text}")
+        print(f"--- [UPS OAUTH TOKEN] ---")
+        print(f"Status: {response.status_code}")
+        if response.status_code == 200:
+            print("Token: [SUCCESS]")
+        else:
+            print(f"Error: {response.text}")
+        print(f"--------------------------\n")
         
         if response.status_code == 200:
             self.token = response.json().get('access_token')
@@ -304,12 +311,12 @@ class UPSApiClient:
         if not self.token:
             self.get_access_token()
             
-        url = f"{self.base_url}/pickupcreation/v2403/pickup/02"
+        # Standard REST Format: DELETE /pickupcreation/{version}/pickup/{PRN}?shipperNumber={ACC}
+        url = f"{self.base_url}/pickupcreation/v2403/pickup/{prn}?shipperNumber={self.account_number}"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'transId': f'cancel_{prn}',
-            'transactionSrc': 'testing',
-            'Prn': prn
+            'transactionSrc': 'testing'
         }
         
         logging.info(f"[API Request] cancel_pickup - URL: {url}\nHeaders: {headers}")
