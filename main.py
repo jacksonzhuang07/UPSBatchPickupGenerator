@@ -457,7 +457,7 @@ class UPSPickupGUI:
             self.status_var.set("Copied to Clipboard!")
             messagebox.showinfo("Copied", "Details copied.")
 
-        btn_frame = ttk.Frame(top, background="white", padding=20)
+        btn_frame = ttk.Frame(top, padding=20)
         btn_frame.pack(fill=tk.X)
 
         copy_btn = ttk.Button(btn_frame, text="Copy Details", style="Accent.TButton", command=copy_to_clipboard)

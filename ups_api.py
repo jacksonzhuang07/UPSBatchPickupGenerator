@@ -320,8 +320,8 @@ class UPSApiClient:
         """
         Retrieves real-time status for a scheduled pickup.
         """
-        if not self.token:
-            self.get_access_token()
+        # Always refresh token to avoid stale token 250002 errors
+        self.get_access_token()
             
         url = f"{self.base_url}/pickupcreation/v2403/pickup/{prn}"
         headers = {
