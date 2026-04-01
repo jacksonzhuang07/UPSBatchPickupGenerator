@@ -761,6 +761,11 @@ class UPSPickupGUI:
                         except Exception as e:
                             fail_count += 1
             
+            # Save history back to file to persist cancellations
+            if success_count > 0:
+                with open(self.history_file, "w") as f:
+                    json.dump(history, f, indent=2)
+
             if success_count > 0 or fail_count > 0:
                 messagebox.showinfo("Bulk Cancel Result", f"Successfully cancelled: {success_count}\nFailed: {fail_count}")
         
@@ -816,6 +821,12 @@ class UPSPickupGUI:
                     txt.insert(tk.END, f"Company:      {local_entry.get('company', 'N/A') if local_entry else 'N/A'}\n")
                     txt.insert(tk.END, f"Address:      {local_entry.get('address', 'N/A') if local_entry else 'N/A'}\n")
                     txt.insert(tk.END, f"Pickup Date:  {details.get('PickupDate', local_entry.get('date', 'N/A') if local_entry else 'N/A')}\n")
+                    
+                    # Show live UPS Status Message (e.g. "Dispatched to driver")
+                    status_msg = details.get('StatusMessage')
+                    if status_msg and status_msg != "N/A":
+                        txt.insert(tk.END, f"UPS Status:   {status_msg}\n")
+                        
                     txt.insert(tk.END, f"Tracking #:   {details.get('TrackingNumber', 'N/A')}\n")
                     txt.insert(tk.END, f"Recorded At:  {local_entry.get('timestamp', 'N/A') if local_entry else 'N/A'}\n")
                     

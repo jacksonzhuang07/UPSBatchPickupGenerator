@@ -376,7 +376,8 @@ class UPSApiClient:
             res_json = response.json()
             # Find the specific PRN in the pending list
             if prn:
-                # The response structure usually contains a 'PendingStatus' list under PickupPendingStatusResponse
+                # Based on user's live capture, the list is 'PendingStatus' under 'PickupPendingStatusResponse'
+                # and individual items use the key 'PRN' (uppercase).
                 pending_response = res_json.get("PickupPendingStatusResponse", {})
                 pending_list = pending_response.get("PendingStatus", [])
                 
@@ -384,16 +385,18 @@ class UPSApiClient:
                 if isinstance(pending_list, dict):
                     pending_list = [pending_list]
                     
-                match = next((item for item in pending_list if item.get("PickupRequestNumber") == prn), None)
+                # Match by 'PRN' (all caps) as per live JSON trace
+                match = next((item for item in pending_list if item.get("PRN") == prn), None)
                 if match:
-                    # Map the found item to our expected internal structure
+                    # Map the found item components (including OnCallStatusCode and PickupStatusMessage)
                     return {
                         "status": "success", 
                         "PickupStatusResponse": {
-                            "StatusCode": match.get("StatusCode", "N/A"),
-                            "PickupDate": match.get("PickupDate", "N/A"),
-                            "ReadyTime": match.get("ReadyTime", "N/A"),
-                            "CloseTime": match.get("CloseTime", "N/A")
+                            "StatusCode": match.get("OnCallStatusCode", "N/A"),
+                            "PickupDate": match.get("ServiceDate", "N/A"),
+                            "StatusMessage": match.get("PickupStatusMessage", "N/A"),
+                            "PickupType": match.get("PickupType", "N/A"),
+                            "ContactName": match.get("ContactName", "N/A")
                         },
                         "full_response": res_json
                     }
