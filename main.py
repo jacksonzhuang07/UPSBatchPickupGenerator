@@ -622,6 +622,26 @@ class UPSPickupGUI:
         self.fields["CompanyName"].insert(0, "Omnitrans Inc")
         self.fields["ContactName"].insert(0, "Warehouse")
 
+    def load_from_history(self, pickup_details):
+        """Populates the main form with historical address data."""
+        self.clear_fields()
+        if not pickup_details:
+            return
+            
+        # Map details to GUI fields
+        for key, value in pickup_details.items():
+            if key in self.fields:
+                self.fields[key].delete(0, tk.END)
+                self.fields[key].insert(0, str(value))
+        
+        # Switch to the first tab (Schedule Pickup)
+        try:
+            self.notebook.select(0)
+            self.root.deiconify()
+            self.root.focus_force()
+        except:
+            pass
+
     def save_to_history(self, entry):
         history = []
         try:
@@ -781,7 +801,40 @@ class UPSPickupGUI:
                 if entry and entry.get("TrackingNumber"):
                     webbrowser.open(f"https://www.ups.com/track?tracknum={entry['TrackingNumber']}")
 
-        tree.bind("<Double-1>", on_double_click)
+        def on_right_click(event):
+            # Select the item under cursor first
+            iid = tree.identify_row(event.y)
+            if iid:
+                tree.selection_set(iid)
+                menu.post(event.x_root, event.y_root)
+
+        def repeat_pickup():
+            selection = tree.selection()
+            if not selection: return
+            item_iid = selection[0]
+            values = tree.item(item_iid, "values")
+            prn = values[6]
+            entry = next((e for e in history if e.get("prn") == prn), None)
+            if entry:
+                self.load_from_history(entry.get("details"))
+                top.destroy() # Close history window after selecting repeat
+            else:
+                # Fallback search by address if PRN is missing
+                addr = values[2]
+                entry = next((e for e in history if e.get("address") == addr), None)
+                if entry:
+                    self.load_from_history(entry.get("details"))
+                    top.destroy()
+
+        # Context Menu Setup
+        menu = tk.Menu(top, tearoff=0)
+        menu.add_command(label="Check Status (Live)", command=lambda: on_double_click(None))
+        menu.add_command(label="Repeat Pickup (Fill Form)", command=repeat_pickup)
+        menu.add_separator()
+        menu.add_command(label="Cancel Pickup", command=cancel_selected)
+        
+        tree.bind("<Button-3>", on_right_click) # Right Click
+        tree.bind("<Double-1>", on_double_click) # Double Click
         
         # UI Hint for Range Selection
         ttk.Label(top, text="Tip: Use Shift+Click to select a range of items, or Ctrl+Click to pick specific ones.", 
