@@ -721,12 +721,47 @@ class UPSPickupGUI:
         for col in columns:
             tree.heading(col, text=col, command=lambda _col=col: self.sort_treeview(tree, _col, False))
             tree.column(col, width=120)
-        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
+        
+        # Initial load
+        refresh_tree()
+        
         # Export Button
         export_btn = ttk.Button(search_frame, text="Export Selected to Excel", 
                                command=lambda: self.export_to_excel(tree, history))
         export_btn.pack(side=tk.LEFT, padx=10)
+
+        def cancel_selected():
+            selected_items = tree.selection()
+            if not selected_items: 
+                messagebox.showwarning("Warning", "Please select at least one pickup to cancel.")
+                return
+            
+            if not messagebox.askyesno("Confirm", f"Cancel {len(selected_items)} selected pickup(s)?"):
+                return
+
+            success_count = 0
+            fail_count = 0
+            
+            for item_iid in selected_items:
+                values = tree.item(item_iid, "values")
+                prn = values[6]
+                
+                if prn:
+                    entry = next((e for e in history if e.get("prn") == prn), None)
+                    if entry:
+                        try:
+                            res = self.api_client.cancel_pickup(prn)
+                            if res.get("status") == "success" or "error" not in str(res).lower():
+                                success_count += 1
+                                tree.set(item_iid, "Status", "Cancelled")
+                                entry["status"] = "Cancelled"
+                            else:
+                                fail_count += 1
+                        except Exception as e:
+                            fail_count += 1
+            
+            if success_count > 0 or fail_count > 0:
+                messagebox.showinfo("Bulk Cancel Result", f"Successfully cancelled: {success_count}\nFailed: {fail_count}")
         
         def on_double_click(event):
             selection = tree.selection()
