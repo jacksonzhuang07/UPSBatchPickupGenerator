@@ -326,8 +326,10 @@ class UPSApiClient:
         url = f"{self.base_url}/pickupcreation/v2403/pickup/{prn}"
         headers = {
             'Authorization': f'Bearer {self.token}',
-            'transId': f'status_{prn}',
-            'transactionSrc': 'testing'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'transId': str(uuid.uuid4()),
+            'transactionSrc': 'OmnitransInc'
         }
         
         logging.info(f"[API Request] get_pickup_status - URL: {url}")

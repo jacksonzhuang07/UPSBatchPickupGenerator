@@ -717,33 +717,63 @@ class UPSPickupGUI:
             prn = values[6]  # Column 6 = PRN (0:Timestamp, 1:Company, 2:Address, 3:Date, 4:Time, 5:Status, 6:PRN)
             
             if prn:
-                # Find the locally stored record first
+                # Find the locally stored record for fallback
                 local_entry = next((e for e in history if e.get("prn") == prn), None)
                 details = local_entry.get("details", {}) if local_entry else {}
                 if isinstance(details, str):
                     try: details = json.loads(details)
                     except: details = {}
 
-                # Build a detail window from local data
+                # Open detail window
                 details_win = tk.Toplevel(top)
                 details_win.title(f"Pickup Details: {prn}")
-                details_win.geometry("520x420")
+                details_win.geometry("540x480")
 
                 txt = tk.Text(details_win, padx=15, pady=10, font=self.main_font, bg="#F5F5F7", borderwidth=0)
                 txt.pack(fill=tk.BOTH, expand=True)
 
-                txt.insert(tk.END, f"PRN: {prn}\n")
-                txt.insert(tk.END, f"Status: {local_entry.get('status', 'N/A') if local_entry else 'N/A'}\n")
-                txt.insert(tk.END, f"Company: {local_entry.get('company', 'N/A') if local_entry else 'N/A'}\n")
-                txt.insert(tk.END, f"Address: {local_entry.get('address', 'N/A') if local_entry else 'N/A'}\n")
-                txt.insert(tk.END, f"Pickup Date: {details.get('PickupDate', local_entry.get('date', 'N/A') if local_entry else 'N/A')}\n")
-                txt.insert(tk.END, f"Ready Time: {details.get('ReadyTime', 'N/A')}\n")
-                txt.insert(tk.END, f"Close Time: {details.get('CloseTime', 'N/A')}\n")
-                txt.insert(tk.END, f"Tracking #: {details.get('TrackingNumber', 'N/A')}\n")
-                txt.insert(tk.END, f"Recorded At: {local_entry.get('timestamp', 'N/A') if local_entry else 'N/A'}\n")
-                txt.insert(tk.END, "\n─────────────────────────────\n")
-                txt.insert(tk.END, "Note: Live UPS status lookup requires additional API entitlements.\n")
-                txt.insert(tk.END, "Showing locally recorded data.\n")
+                # Try live UPS status API first
+                try:
+                    res = self.api_client.get_pickup_status(prn)
+                    errors = res.get("response", {}).get("errors", [])
+                    if errors:
+                        # API returned an error (e.g. 250002) — show local data + error info
+                        err_code = errors[0].get("code", "?")
+                        err_msg = errors[0].get("message", "Unknown error")
+                        txt.insert(tk.END, f"⚠ Live UPS Status Unavailable\n")
+                        txt.insert(tk.END, f"   Error {err_code}: {err_msg}\n\n")
+                        txt.insert(tk.END, "─── Locally Recorded Data ───\n\n")
+                    else:
+                        # Live data success
+                        txt.insert(tk.END, f"✓ Live Pickup Status from UPS\n\n")
+                        if "PickupStatusResponse" in res:
+                            status_data = res["PickupStatusResponse"]
+                            txt.insert(tk.END, f"UPS Status: {status_data.get('StatusCode', 'N/A')}\n")
+                            txt.insert(tk.END, f"Pickup Date: {status_data.get('PickupDate', 'N/A')}\n")
+                            txt.insert(tk.END, f"Ready Time:  {status_data.get('ReadyTime', 'N/A')}\n")
+                            txt.insert(tk.END, f"Close Time:  {status_data.get('CloseTime', 'N/A')}\n\n")
+                        txt.insert(tk.END, "─── Record Verification ───\n\n")
+
+                    # Always show key local data for reference
+                    txt.insert(tk.END, f"PRN:          {prn}\n")
+                    txt.insert(tk.END, f"Status:       {local_entry.get('status', 'N/A') if local_entry else 'N/A'}\n")
+                    txt.insert(tk.END, f"Company:      {local_entry.get('company', 'N/A') if local_entry else 'N/A'}\n")
+                    txt.insert(tk.END, f"Address:      {local_entry.get('address', 'N/A') if local_entry else 'N/A'}\n")
+                    txt.insert(tk.END, f"Pickup Date:  {details.get('PickupDate', local_entry.get('date', 'N/A') if local_entry else 'N/A')}\n")
+                    txt.insert(tk.END, f"Tracking #:   {details.get('TrackingNumber', 'N/A')}\n")
+                    txt.insert(tk.END, f"Recorded At:  {local_entry.get('timestamp', 'N/A') if local_entry else 'N/A'}\n")
+                    
+                    if not errors:
+                        txt.insert(tk.END, "\n─── Full API Trace ───\n")
+                        txt.insert(tk.END, json.dumps(res, indent=2))
+
+                except Exception as e:
+                    txt.insert(tk.END, f"⚠ Could not reach UPS API: {str(e)}\n\n")
+                    txt.insert(tk.END, "─── Locally Recorded Data ───\n\n")
+                    txt.insert(tk.END, f"PRN:          {prn}\n")
+                    txt.insert(tk.END, f"Status:       {local_entry.get('status', 'N/A') if local_entry else 'N/A'}\n")
+                    txt.insert(tk.END, f"Address:      {local_entry.get('address', 'N/A') if local_entry else 'N/A'}\n")
+
                 txt.config(state=tk.DISABLED)
             else:
                 # Fallback to Tracking search if no PRN
