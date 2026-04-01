@@ -76,6 +76,8 @@ class UPSPickupGUI:
         style.configure("TLabel", background=bg_main, foreground=text_primary, font=self.main_font)
         style.configure("Secondary.TLabel", background=bg_main, foreground=text_secondary, font=(f"{main_font_family}", 9))
         style.configure("Header.TLabel", background=bg_main, foreground=text_primary, font=self.header_font)
+        style.configure("Card.TLabel", background=bg_card, foreground=text_primary, font=self.main_font)
+        style.configure("CardHeader.TLabel", background=bg_card, foreground=text_primary, font=self.bold_font)
         
         style.configure("TButton", font=self.bold_font, padding=[12, 6], background=bg_card, foreground=text_primary)
         style.map("TButton", background=[("active", "#E8E8ED")])
@@ -130,7 +132,7 @@ class UPSPickupGUI:
         fields_card = ttk.Frame(main_frame, style="Card.TFrame", padding=20)
         fields_card.pack(fill=tk.BOTH, expand=True)
         
-        ttk.Label(fields_card, text="Audit Details", font=self.bold_font, background="white").grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 15))
+        ttk.Label(fields_card, text="Audit Details", style="CardHeader.TLabel").grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 15))
         
         self.fields = {}
         field_labels = ["Street", "Suite", "City", "State", "Zip", "Country", "CompanyName", "ContactName", "Phone", "Email"]
@@ -138,7 +140,7 @@ class UPSPickupGUI:
         for i, label in enumerate(field_labels):
             row = (i // 2) + 1
             col = (i % 2) * 2
-            ttk.Label(fields_card, text=f"{label}:", background="white", font=self.main_font).grid(row=row, column=col, sticky=tk.W, pady=8, padx=(0, 5))
+            ttk.Label(fields_card, text=f"{label}:", style="Card.TLabel").grid(row=row, column=col, sticky=tk.W, pady=8, padx=(0, 5))
             entry = ttk.Entry(fields_card, width=28)
             entry.grid(row=row, column=col+1, sticky=tk.W, padx=(0, 20), pady=8)
             self.fields[label] = entry
@@ -204,14 +206,14 @@ class UPSPickupGUI:
         defaults_card = ttk.Frame(main_frame, style="Card.TFrame", padding=20)
         defaults_card.pack(fill=tk.X, pady=10)
         
-        ttk.Label(defaults_card, text="Processing Defaults", font=self.bold_font, background="white").grid(row=0, column=0, columnspan=6, sticky=tk.W, pady=(0, 15))
+        ttk.Label(defaults_card, text="Processing Defaults", style="CardHeader.TLabel").grid(row=0, column=0, columnspan=6, sticky=tk.W, pady=(0, 15))
         
         self.batch_defaults = {}
         batch_field_labels = ["CompanyName", "ContactName", "Phone", "Email", "ServiceCode"]
         for i, label in enumerate(batch_field_labels):
             row = (i // 3) + 1
             col = (i % 3) * 2
-            ttk.Label(defaults_card, text=f"{label}:", background="white", font=self.main_font).grid(row=row, column=col, sticky=tk.W, pady=8, padx=(0, 5))
+            ttk.Label(defaults_card, text=f"{label}:", style="Card.TLabel").grid(row=row, column=col, sticky=tk.W, pady=8, padx=(0, 5))
             entry = ttk.Entry(defaults_card, width=18)
             entry.grid(row=row, column=col+1, sticky=tk.W, padx=(0, 15), pady=8)
             self.batch_defaults[label] = entry
@@ -434,7 +436,7 @@ class UPSPickupGUI:
         top.transient(self.root)
         top.grab_set()
 
-        header = ttk.Label(top, text="Pickup Scheduled", font=self.header_font, background="white")
+        header = ttk.Label(top, text="Pickup Scheduled", style="CardHeader.TLabel")
         header.pack(pady=(20, 10))
 
         msg = f"PRN: {prn}\n"
