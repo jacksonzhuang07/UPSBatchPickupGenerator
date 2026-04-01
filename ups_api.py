@@ -323,7 +323,7 @@ class UPSApiClient:
         # Always refresh token to avoid stale token 250002 errors
         self.get_access_token()
             
-        url = f"{self.base_url}/pickupcreation/v2403/pickup/{prn}"
+        url = f"{self.base_url}/pickupcreation/v2403/pickup/{prn}?shipperNumber={self.account_number}"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
