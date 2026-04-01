@@ -349,8 +349,8 @@ class UPSApiClient:
         self.get_access_token()
             
         # Official Documentation: GET /shipments/{version}/pickup/{pickuptype}
-        # Using 'both' to see all pending pickups for the account.
-        url = f"{self.base_url.replace('/pickupcreation', '')}/shipments/v2409/pickup/both"
+        # Using 'oncall' as the account isn't set up for smart pickups (fixes 9510165).
+        url = f"{self.base_url.replace('/pickupcreation', '')}/shipments/v2409/pickup/oncall"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',

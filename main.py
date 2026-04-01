@@ -17,7 +17,8 @@ UPS_ERROR_MAP = {
     "9510118": "Pickup service is not available for this address/day. Check if it is a holiday or remote area.",
     "9500505": "Invalid State/Province code. Even with normalization, UPS requires a 2-letter ISO code.",
     "120120": "Account mismatch. A Canadian account cannot generate domestic US return labels. Falling back to default tracking.",
-    "9500781": "The pickup has zero balance for charges (Success)."
+    "9500781": "The pickup has zero balance for charges (Success).",
+    "9510165": "This account is not set up for Smart Pickup service (Success for On-Demand)."
 }
 
 class UPSPickupGUI:
