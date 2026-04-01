@@ -727,7 +727,7 @@ class UPSPickupGUI:
         
         # Export Button
         export_btn = ttk.Button(search_frame, text="Export Selected to Excel", 
-                               command=lambda: self.export_to_excel(tree, history))
+                               command=lambda: self.export_to_excel(tree, history, top))
         export_btn.pack(side=tk.LEFT, padx=10)
 
         def cancel_selected():
@@ -885,7 +885,7 @@ class UPSPickupGUI:
             tree.move(k, '', index)
         tree.heading(col, command=lambda: self.sort_treeview(tree, col, not reverse))
 
-    def export_to_excel(self, tree, history):
+    def export_to_excel(self, tree, history, top):
         selected = tree.selection()
         if not selected:
             messagebox.showwarning("Export", "Please select one or more items to export.")

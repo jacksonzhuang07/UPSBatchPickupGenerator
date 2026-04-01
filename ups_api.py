@@ -307,6 +307,7 @@ class UPSApiClient:
         url = f"{self.base_url}/pickupcreation/v2403/pickup/02"
         headers = {
             'Authorization': f'Bearer {self.token}',
+            'AccountNumber': self.account_number,
             'transId': f'cancel_{prn}',
             'transactionSrc': 'testing',
             'Prn': prn
@@ -338,16 +339,15 @@ class UPSApiClient:
         # Always refresh token to avoid stale token 250002 errors
         self.get_access_token()
             
-        # The correct structural URL for pending status in v2409/v2403
-        # PRN is NOT a path parameter for status; 'both' or 'oncall' is.
-        url = f"{self.base_url}/pickupcreation/v2409/pickup/both"
+        # Standardize on v2403 as verified in create_pickup
+        url = f"{self.base_url}/pickupcreation/v2403/pickup/both"
         headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'AccountNumber': self.account_number,
             'transId': str(uuid.uuid4()),
-            'transactionSrc': 'OmnitransInc'
+            'transactionSrc': 'testing'
         }
         
         logging.info(f"[API Request] get_pickup_status - URL: {url}")
