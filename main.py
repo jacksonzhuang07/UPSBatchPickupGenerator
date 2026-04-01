@@ -6,6 +6,7 @@ import datetime
 import time
 import threading
 import webbrowser
+import logging
 from address_parser import parse_address_string, split_addresses
 from ups_api import UPSApiClient
 import openpyxl
@@ -362,14 +363,16 @@ class UPSPickupGUI:
         
         if messagebox.askyesno("Audit Confirmation", f"Schedule pickup for {pickup_data['Street']}?"):
             try:
-                # 0. Assign service code based on country
-                country = pickup_data.get("Country", "")
+                pickup_data["Country"] = pickup_data.get("Country", "").upper()
+                pickup_data["State"] = pickup_data.get("State", "").upper()
+                country = pickup_data["Country"]
+                
                 if country == "CA":
                     pickup_data["ServiceCode"] = "011"
                 elif country == "US":
                     pickup_data["ServiceCode"] = "003"
                 else:
-                    pickup_data["ServiceCode"] = "007"  # UPS Worldwide Express for international
+                    pickup_data["ServiceCode"] = "007"
 
                 # 1. Automate return label if no unique tracking is provided
                 if pickup_data["TrackingNumber"] == "1Z4A059A9190837115":
@@ -387,6 +390,7 @@ class UPSPickupGUI:
                 result = self.api_client.create_pickup(pickup_data)
                 self.handle_api_result(result, pickup_data)
             except Exception as e:
+                logging.error(f"Exception in submit_pickup: {str(e)}")
                 messagebox.showerror("API Error", str(e))
 
         # Extract PRN if success
@@ -576,18 +580,6 @@ class UPSPickupGUI:
                     prn = result["PickupCreationResponse"]["PRN"]
                     self.log_message(f"Success for {pickup_data['Street']}: {prn}")
                     self.batch_tree.item(iid, values=(f"{pickup_data['Street']}, {pickup_data['City']}", "Success", prn))
-                else:
-                    err = result.get("response", {}).get("errors", [{}])[0].get("message", "API Error")
-                    self.batch_tree.item(iid, values=(f"{pickup_data['Street']}, {pickup_data['City']}", "Failed", err))
-
-                # Step-by-Step Pause Logic
-                if self.manual_mode.get() and not self.stop_batch:
-                    self.log_message("Manual Mode: Paused. Click 'Next Item' to continue.")
-                    self.next_btn.config(state=tk.NORMAL)
-                    self.next_step_event.wait()
-                    self.next_step_event.clear()
-                    self.next_btn.config(state=tk.DISABLED)
-                
                 # Log to history
                 full_addr = f"{pickup_data.get('Street', '')}, {pickup_data.get('City', '')}, {pickup_data.get('State', '')} {pickup_data.get('Zip', '')}, {pickup_data.get('Country', '')}".strip(", ")
                 
@@ -598,11 +590,14 @@ class UPSPickupGUI:
                     "date": pickup_data["PickupDate"],
                     "status": "Success" if prn else "Failed",
                     "prn": prn,
-                    "details": pickup_data # Save full data
+                    "details": pickup_data
                 }
                 self.save_to_history(entry)
+                if not prn:
+                    logging.warning(f"Batch Failure for {pickup_data['Street']}: {err}")
 
             except Exception as e:
+                logging.error(f"Exception in process_batch for {pickup_data.get('Street')}: {str(e)}")
                 self.batch_tree.item(iid, values=(f"{pickup_data['Street']}, {pickup_data['City']}", "Error", str(e)))
 
         self.run_batch_btn.config(state=tk.NORMAL)

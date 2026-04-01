@@ -1,5 +1,10 @@
 import usaddress
 import re
+import logging
+
+# Configure logging to match main app or standalone
+if not logging.getLogger().hasHandlers():
+    logging.basicConfig(level=logging.INFO, filename='ups_api.log', format='%(asctime)s - %(levelname)s - %(message)s')
 
 PROVINCES = {
     'ON': 'Ontario', 'QC': 'Quebec', 'BC': 'British Columbia', 'AB': 'Alberta',
@@ -245,7 +250,7 @@ def parse_address_string(address_str):
 
         return parsed
     except Exception as e:
-        print(f"Error parsing address: {e}")
+        logging.error(f"Error parsing address block: {e}")
         return None
 
 def split_addresses(raw_text):
