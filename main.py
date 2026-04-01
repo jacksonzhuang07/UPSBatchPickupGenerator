@@ -709,7 +709,10 @@ class UPSPickupGUI:
         export_btn.pack(side=tk.LEFT, padx=10)
         
         def on_double_click(event):
-            item_iid = tree.selection()[0]
+            selection = tree.selection()
+            if not selection:
+                return
+            item_iid = selection[0]
             values = tree.item(item_iid, "values")
             prn = values[5]
             
