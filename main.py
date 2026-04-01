@@ -717,32 +717,34 @@ class UPSPickupGUI:
             prn = values[6]  # Column 6 = PRN (0:Timestamp, 1:Company, 2:Address, 3:Date, 4:Time, 5:Status, 6:PRN)
             
             if prn:
-                # PRN Verification Pop-up
-                try:
-                    res = self.api_client.get_pickup_status(prn)
-                    # Pretty print the result in a new window
-                    details_win = tk.Toplevel(top)
-                    details_win.title(f"Pickup Details: {prn}")
-                    details_win.geometry("500x400")
-                    
-                    # Extract useful fields from UPS response if possible
-                    txt = tk.Text(details_win, padx=10, pady=10, font=self.main_font, bg="#F5F5F7", borderwidth=0)
-                    txt.pack(fill=tk.BOTH, expand=True)
-                    
-                    # Simple formatting of the JSON response
-                    txt.insert(tk.END, f"Live Pickup Information from UPS for PRN: {prn}\n\n")
-                    if "PickupStatusResponse" in res:
-                        status_data = res["PickupStatusResponse"]
-                        txt.insert(tk.END, f"Status: {status_data.get('StatusCode', 'N/A')}\n")
-                        txt.insert(tk.END, f"Pickup Date: {status_data.get('PickupDate', 'N/A')}\n")
-                        txt.insert(tk.END, f"Ready Time: {status_data.get('ReadyTime', 'N/A')}\n")
-                        txt.insert(tk.END, f"Close Time: {status_data.get('CloseTime', 'N/A')}\n\n")
-                        
-                    txt.insert(tk.END, "Full API Response:\n")
-                    txt.insert(tk.END, json.dumps(res, indent=2))
-                    txt.config(state=tk.DISABLED) # Read only
-                except Exception as e:
-                    messagebox.showerror("Error", f"Could not fetch pickup status: {str(e)}")
+                # Find the locally stored record first
+                local_entry = next((e for e in history if e.get("prn") == prn), None)
+                details = local_entry.get("details", {}) if local_entry else {}
+                if isinstance(details, str):
+                    try: details = json.loads(details)
+                    except: details = {}
+
+                # Build a detail window from local data
+                details_win = tk.Toplevel(top)
+                details_win.title(f"Pickup Details: {prn}")
+                details_win.geometry("520x420")
+
+                txt = tk.Text(details_win, padx=15, pady=10, font=self.main_font, bg="#F5F5F7", borderwidth=0)
+                txt.pack(fill=tk.BOTH, expand=True)
+
+                txt.insert(tk.END, f"PRN: {prn}\n")
+                txt.insert(tk.END, f"Status: {local_entry.get('status', 'N/A') if local_entry else 'N/A'}\n")
+                txt.insert(tk.END, f"Company: {local_entry.get('company', 'N/A') if local_entry else 'N/A'}\n")
+                txt.insert(tk.END, f"Address: {local_entry.get('address', 'N/A') if local_entry else 'N/A'}\n")
+                txt.insert(tk.END, f"Pickup Date: {details.get('PickupDate', local_entry.get('date', 'N/A') if local_entry else 'N/A')}\n")
+                txt.insert(tk.END, f"Ready Time: {details.get('ReadyTime', 'N/A')}\n")
+                txt.insert(tk.END, f"Close Time: {details.get('CloseTime', 'N/A')}\n")
+                txt.insert(tk.END, f"Tracking #: {details.get('TrackingNumber', 'N/A')}\n")
+                txt.insert(tk.END, f"Recorded At: {local_entry.get('timestamp', 'N/A') if local_entry else 'N/A'}\n")
+                txt.insert(tk.END, "\n─────────────────────────────\n")
+                txt.insert(tk.END, "Note: Live UPS status lookup requires additional API entitlements.\n")
+                txt.insert(tk.END, "Showing locally recorded data.\n")
+                txt.config(state=tk.DISABLED)
             else:
                 # Fallback to Tracking search if no PRN
                 entry = next((e for e in history if f"{e.get('Street', '')}, {e.get('City', '')}" == values[2]), None)
